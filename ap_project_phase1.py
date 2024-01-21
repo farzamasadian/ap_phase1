@@ -4,6 +4,11 @@ from enum import Enum
 import re
 import random
 import requests
+import sqlite3
+
+def get_db_connection():
+    conn = sqlite3.connect('clinic_reservation_system.db')
+    return conn
 
 # Enums for clarity and safety
 class UserType(Enum):
@@ -48,17 +53,24 @@ class User:
         self.otp = None
         self.otp_expiry = None
 
+    
+        
     def sign_up(self):
         """
         Registers the user in the system if the username is unique.
         """
-        for user in users:
-            if user['username'] == self.username:
-                print("Username already exists.")
-                return
-        users.append(self.to_dict())
-        print(f"User {self.username} signed up successfully.")
-
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO Users (username, email, password, user_type) VALUES (?, ?, ?, ?)", 
+                           (self.username, self.email, self.password, self.user_type))
+            conn.commit()
+            print(f"User {self.username} signed up successfully.")
+        except sqlite3.IntegrityError:
+            print("Username already exists.")
+        finally:
+            conn.close()
+   
     def generate_otp(self):
         """
         Generates a One Time Password for the user and sets its expiry time.
@@ -137,7 +149,7 @@ class User:
             'otp': self.otp,
             'otp_expiry': self.otp_expiry.isoformat() if self.otp_expiry else None
         }
-
+    
 
 class Clinic:
     """
@@ -171,20 +183,28 @@ class Clinic:
             'services': self.services,
             'availability': self.availability
         }
-
     def update_clinic_info(self, new_address=None, new_phone=None):
-        """
+            """
         Updates the clinic's address or phone information.
         
         Attributes:
         - new_address: New physical address to update.
         - new_phone: New contact number to update.
         """
-        if new_address:
-            self.address = new_address
-        if new_phone:
-            self.phone_info = new_phone
-        print(f"Clinic {self.name}'s info updated successfully.")
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            try:
+                if new_address:
+                    cursor.execute("UPDATE Clinics SET address = ? WHERE clinic_id = ?", (new_address, self.clinic_id))
+                if new_phone:
+                    cursor.execute("UPDATE Clinics SET phone_info = ? WHERE clinic_id = ?", (new_phone, self.clinic_id))
+                conn.commit()
+                print(f"Clinic {self.name}'s info updated successfully.")
+            except sqlite3.Error as e:
+                print(f"Clinic Error")
+
+        
+        
 
     def set_availability(self, date, available):
         """
@@ -229,27 +249,44 @@ class Appointment:
             'user_id': self.user_id,
             'clinic_id': self.clinic_id
         }
-
+    
     def register_patient_appointment(self):
         """
         Registers a new appointment for the patient if the time slot isn't already taken.
         """
-        for appointment in appointments:
-            if appointment['date_time'] == self.date_time and appointment['clinic_id'] == self.clinic_id:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT * FROM Appointments WHERE date_time = ? AND clinic_id = ?", 
+                           (self.date_time, self.clinic_id))
+            if cursor.fetchone():
                 print("This time slot is already booked.")
-                return
-        appointments.append(self.to_dict())
-        print(f"Appointment {self.appointment_id} registered successfully for user {self.user_id}.")
-
+            else:
+                cursor.execute("INSERT INTO Appointments (status, date_time, user_id, clinic_id) VALUES (?, ?, ?, ?)", 
+                               (self.status, self.date_time, self.user_id, self.clinic_id))
+                conn.commit()
+                print(f"Appointment registered successfully for user")
+        except:
+            print(f"Appointment Error")
     def cancel_patient_appointment(self):
         """
         Cancels the appointment by changing its status to canceled.
         """
-        for appointment in appointments:
-            if appointment['appointment_id'] == self.appointment_id:
-                appointment['status'] = AppointmentStatus.CANCELED.value
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("UPDATE Appointments SET status = ? WHERE appointment_id = ?", 
+                        (AppointmentStatus.CANCELED.value, self.appointment_id))
+            if cursor.rowcount == 0:
+                print("Appointment not found.")
+            else:
+                conn.commit()
                 print(f"Appointment {self.appointment_id} has been canceled.")
-                break
+        except sqlite3.Error as e:
+            print(f"An error occurred: {e}")
+        finally:
+            conn.close()
+
 
     def reschedule_patient_appointment(self, new_time):
         """
@@ -258,12 +295,20 @@ class Appointment:
         Attributes:
         - new_time: The new time to which the appointment is rescheduled.
         """
-        for appointment in appointments:
-            if appointment['appointment_id'] == self.appointment_id:
-                appointment['date_time'] = new_time
-                appointment['status'] = AppointmentStatus.PENDING.value
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("UPDATE Appointments SET date_time = ?, status = ? WHERE appointment_id = ?", 
+                        (new_time, AppointmentStatus.PENDING.value, self.appointment_id))
+            if cursor.rowcount == 0:
+                print("Appointment not found.")
+            else:
+                conn.commit()
                 print(f"Appointment {self.appointment_id} rescheduled to {new_time}.")
-                break
+        except sqlite3.Error as e:
+            print(f"An error occurred: {e}")
+        finally:
+            conn.close()
 
 
 class Notification:
@@ -296,7 +341,7 @@ class Notification:
         """
         print(f"Notification sent to {self.username} at {self.date_time}: {self.message}")
         notifications.append(self.to_dict())
-
+        
     @staticmethod
     def send_bulk_notifications(users, message):
         """
@@ -306,10 +351,19 @@ class Notification:
         - users: List of users to whom the notification is to be sent.
         - message: The content of the notification.
         """
-        for user in users:
-            notification = Notification(user['username'], message)
-            notification.send_notification()
-            print(f"Sent notification to {user['username']}")
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            for user in users:
+                notification = Notification(user['username'], message)
+                cursor.execute("INSERT INTO Notifications (username, message, date_time) VALUES (?, ?, ?)", 
+                            (notification.username, notification.message, notification.date_time))
+                print(f"Sent notification to {user['username']}")
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"An error occurred: {e}")
+        finally:
+            conn.close()
 
 
 # Admin-specific functionalities
@@ -413,32 +467,36 @@ def fetch_available_appointments():
         print(f"An error occurred: {e}")
 
 
-def adjust_clinic_capacity(clinic_id, new_capacity):
+
+def adjust_clinic_capacity(code, reserved):
     """
     Adjusts the capacity of a clinic by sending a POST request to an external API.
 
-    This function aims to update the number of available appointments for a specific clinic.
-    It sends a payload with the clinic ID and the new desired capacity to the external API endpoint.
+    This function aims to update the number of reserved appointments for a specific clinic.
+    It sends a payload with the clinic code and the number of reserved appointments to the external API endpoint.
     Upon success, it confirms the adjustment; otherwise, it reports a failure.
 
     Attributes:
-    clinic_id: int
-        The unique identifier of the clinic for which the capacity is being adjusted.
-    new_capacity: int
-        The new capacity (number of available appointments) to set for the clinic.
+    code: int
+        The unique code of the clinic for which the reserved appointments are being updated.
+    reserved: int
+        The number of reserved appointments to set for the clinic.
 
     The function catches and reports any exceptions that occur during the process,
     such as network issues or problems with the external API.
     """
     try:
-        payload = {'clinic_id': clinic_id, 'new_capacity': new_capacity}
-        response = requests.post('http://127.0.0.1:5000/adjust_capacity', json=payload)
+        payload = {'clinic code': code, 'reserved appointments': reserved}
+        response = requests.post('https://localhost/slots', json=payload)
+   
         if response.status_code == 200:
             print(f"Clinic capacity adjusted successfully: {response.json()}")
         else:
             print("Failed to adjust clinic capacity.")
     except Exception as e:
         print(f"An error occurred: {e}")
+
+
 
 
 
@@ -509,11 +567,40 @@ def test_admin_scenario():
     admin.view_appointments()  # Admin views all appointments again to see the changes
 
 
+
 # Run the test scenario
 test_user_scenario()
 
 # Run the admin test scenario
 test_admin_scenario()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            
+
+    
+                    
+ 
+
+
+
+
+
+
+
 
 
 
