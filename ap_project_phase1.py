@@ -499,87 +499,228 @@ def adjust_clinic_capacity(code, reserved):
 
 
 
+# # Mock function to simulate fetching available appointments from an external API
+# def mock_fetch_available_appointments():
+#     return [
+#         {'date_time': '2023-12-23 10:00', 'clinic_id': 1},
+#         {'date_time': '2023-12-24 11:00', 'clinic_id': 1}
+#     ]
+
+# def test_user_scenario():
+#     # Step 1: Create a Clinic and Services
+#     clinic = Clinic(clinic_id_counter, "Health Clinic", "123 Health St.", "123-456-7890", ["General Checkup"])
+#     clinics.append(clinic.to_dict())
+#     clinic.set_availability('2023-12-23', True)
+
+#     # Step 2: User Signup and Login
+#     user = User(1, "JohnDoe", "john@example.com", "password123", UserType.PATIENT)
+#     user.sign_up()
+#     user.login("password123")
+
+#     # Step 3: Fetch Available Appointments (mocked)
+#     available_appointments = mock_fetch_available_appointments()
+#     print("Available appointments:")
+#     for appt in available_appointments:
+#         print(appt)
+
+#     # Step 4: Book an Appointment
+#     chosen_appt = available_appointments[0]
+#     new_appointment = Appointment(AppointmentStatus.PENDING, chosen_appt['date_time'], user.user_id, chosen_appt['clinic_id'])
+#     new_appointment.register_patient_appointment()
+
+#     # Step 5: View Current Appointments
+#     user.view_appointments()
+
+
+# def test_admin_scenario():
+#     # Step 1: Admin Signup and Login
+#     # Assuming the admin 'AdminUser' is already created from the previous script
+#     admin = Admin(2, "AdminUser", "admin@example.com", "adminpassword", UserType.STAFF)
+#     admin.sign_up()
+#     admin.generate_otp()  # Simulate sending an OTP
+#     admin.login(admin.otp)  # Admin logs in with OTP
+
+#     # Step 2: View Current Appointments
+#     print("\n[Admin: Viewing Current Appointments]")
+#     admin.view_appointments()  # Admin views all appointments
+
+#     # Step 3: Remove an Appointment
+#     # For this test, we assume the admin knows the appointment ID to remove
+#     print("\n[Admin: Removing an Appointment]")
+#     appointment_to_remove = 1  # Assuming an appointment with this ID exists
+#     admin.remove_appointment(appointment_to_remove)  # Admin removes an appointment
+
+#     # Step 4: Add Appointment Capacity
+#     print("\n[Admin: Adding Appointment Capacity]")
+#     admin.clinic_id = 1  # Assuming the admin is associated with clinic 1
+#     admin.add_appointment_capacity()  # Admin adds a new appointment slot
+
+#     # View Current Appointments again to see the changes
+#     print("\n[Admin: Viewing Updated Appointments]")
+#     admin.view_appointments()  # Admin views all appointments again to see the changes
 
 
 
+# # Run the test scenario
+# test_user_scenario()
+
+# # Run the admin test scenario
+# test_admin_scenario()
 
 
+def sign_up_command():
+    print("Sign Up:")
+    # Get user details from the user
+    username = input("Enter your username: ")
+    password = input("Enter your password: ")
+    user_type = input("Enter your user type (Patient/Staff): ")
+
+    # Validate user type
+    if user_type.lower() not in [UserType.PATIENT.lower(), UserType.STAFF.lower()]:
+        print("Invalid user type. Please choose either Patient or Staff.")
+        return None
+
+    # Create a new User object
+    new_user = User(username=username, password=password, user_type=user_type)
+
+    # Add additional details if needed
+    if user_type.lower() == UserType.PATIENT.lower():
+        # Additional details for patients
+        new_user.email = input("Enter your email: ")
+
+    # Add logic for storing the user details in a database or list
+    # For example, you might have a list like this:
+    users.append(new_user)
+
+    print("Sign up successful!")
+    return new_user
+
+def log_in_command():
+    print("Log In:")
+    # Get user credentials from the user
+    username = input("Enter your username: ")
+    password = input("Enter your password: ")
+
+    # Find the user in the list or database
+    user = next((u for u in users if u.username == username and u.password == password), None)
+
+    if user:
+        print("Login successful!")
+        return user
+    else:
+        print("Invalid username or password. Please try again.")
+        return None
+
+def handle_patient_command(user, choice):
+    if choice == "1":
+        # View Profile
+        user.view_profile()
+    elif choice == "2":
+        # View Appointments
+        user.view_appointments()
+    elif choice == "3":
+        # Book Appointment
+        date_time = input("Enter the date and time for the appointment (YYYY-MM-DD HH:MM): ")
+        clinic_id = int(input("Enter the clinic ID for the appointment: "))
+        new_appointment = Appointment(status=AppointmentStatus.PENDING, date_time=date_time, user_id=user.user_id, clinic_id=clinic_id)
+        new_appointment.register_patient_appointment()
+    elif choice == "4":
+        # Cancel Appointment
+        appointment_id = int(input("Enter the appointment ID to cancel: "))
+        appointment_to_cancel = next((appt for appt in appointments if appt['appointment_id'] == appointment_id), None)
+        if appointment_to_cancel:
+            cancel_appointment = Appointment(AppointmentStatus.PENDING, appointment_to_cancel['date_time'], user.user_id, appointment_to_cancel['clinic_id'])
+            cancel_appointment.cancel_patient_appointment()
+        else:
+            print("Appointment not found.")
+    elif choice == "5":
+        # View Notifications
+        user.view_notifications()
+    elif choice == "6":
+        # Update Profile
+        new_email = input("Enter your new email (leave empty to keep current): ")
+        new_password = input("Enter your new password (leave empty to keep current): ")
+        user.update_profile(new_email=new_email, new_password=new_password)
+    elif choice == "7":
+        print("Logging out.")
+        user = None
+    else:
+        print("Invalid command. Please enter a valid command number.")
+
+def handle_admin_command(user, choice):
+    if choice == "1":
+        # Current Appointments
+        user.view_appointments()
+    elif choice == "2":
+        # Remove Appointment
+        appointment_id = int(input("Enter the appointment ID to remove: "))
+        user.remove_appointment(appointment_id)
+    elif choice == "3":
+        # Add Appointment Capacity
+        user.add_appointment_capacity()
+    elif choice == "4":
+        # Update Clinic Info
+        new_address = input("Enter the new address for the clinic: ")
+        new_phone = input("Enter the new phone number for the clinic: ")
+        user.update_clinic_info(new_address=new_address, new_phone=new_phone)
+    elif choice == "5":
+        print("Logging out.")
+        user = None
+    else:
+        print("Invalid command. Please enter a valid command number.")
+
+def main():
+    print("Welcome to the Clinic Reservation System!")
+
+    current_user = None
+
+    while True:
+        if current_user:
+            if current_user.user_type == UserType.PATIENT:
+                print("\nPatient Commands:")
+                print("1. View Profile")
+                print("2. View Appointments")
+                print("3. Book Appointment")
+                print("4. Cancel Appointment")
+                print("5. View Notifications")
+                print("6. Update Profile")
+                print("7. Logout")
+
+                choice = input("Enter the number of the command you want to execute: ")
+
+                handle_patient_command(current_user, choice)
+
+            elif current_user.user_type == UserType.STAFF:
+                print("\nAdmin Commands:")
+                print("1. Current Appointments")
+                print("2. Remove Appointment")
+                print("3. Add Appointment Capacity")
+                print("4. Update Clinic Info")
+                print("5. Logout")
+
+                choice = input("Enter the number of the command you want to execute: ")
+
+        else:
+            print("\nAvailable commands:")
+            print("1. Sign Up")
+            print("2. Log In")
+            print("3. Exit")
+
+            choice = input("Enter the number of the command you want to execute: ")
+
+            if choice == "1":
+                current_user = sign_up_command()
+            elif choice == "2":
+                current_user = log_in_command()
+            elif choice == "3":
+                print("Exiting.")
+                break
+            else:
+                print("Invalid command. Please enter a valid command number.")
 
 
-# Mock function to simulate fetching available appointments from an external API
-def mock_fetch_available_appointments():
-    return [
-        {'date_time': '2023-12-23 10:00', 'clinic_id': 1},
-        {'date_time': '2023-12-24 11:00', 'clinic_id': 1}
-    ]
-
-def test_user_scenario():
-    # Step 1: Create a Clinic and Services
-    clinic = Clinic(clinic_id_counter, "Health Clinic", "123 Health St.", "123-456-7890", ["General Checkup"])
-    clinics.append(clinic.to_dict())
-    clinic.set_availability('2023-12-23', True)
-
-    # Step 2: User Signup and Login
-    user = User(1, "JohnDoe", "john@example.com", "password123", UserType.PATIENT)
-    user.sign_up()
-    user.login("password123")
-
-    # Step 3: Fetch Available Appointments (mocked)
-    available_appointments = mock_fetch_available_appointments()
-    print("Available appointments:")
-    for appt in available_appointments:
-        print(appt)
-
-    # Step 4: Book an Appointment
-    chosen_appt = available_appointments[0]
-    new_appointment = Appointment(AppointmentStatus.PENDING, chosen_appt['date_time'], user.user_id, chosen_appt['clinic_id'])
-    new_appointment.register_patient_appointment()
-
-    # Step 5: View Current Appointments
-    user.view_appointments()
-
-
-def test_admin_scenario():
-    # Step 1: Admin Signup and Login
-    # Assuming the admin 'AdminUser' is already created from the previous script
-    admin = Admin(2, "AdminUser", "admin@example.com", "adminpassword", UserType.STAFF)
-    admin.sign_up()
-    admin.generate_otp()  # Simulate sending an OTP
-    admin.login(admin.otp)  # Admin logs in with OTP
-
-    # Step 2: View Current Appointments
-    print("\n[Admin: Viewing Current Appointments]")
-    admin.view_appointments()  # Admin views all appointments
-
-    # Step 3: Remove an Appointment
-    # For this test, we assume the admin knows the appointment ID to remove
-    print("\n[Admin: Removing an Appointment]")
-    appointment_to_remove = 1  # Assuming an appointment with this ID exists
-    admin.remove_appointment(appointment_to_remove)  # Admin removes an appointment
-
-    # Step 4: Add Appointment Capacity
-    print("\n[Admin: Adding Appointment Capacity]")
-    admin.clinic_id = 1  # Assuming the admin is associated with clinic 1
-    admin.add_appointment_capacity()  # Admin adds a new appointment slot
-
-    # View Current Appointments again to see the changes
-    print("\n[Admin: Viewing Updated Appointments]")
-    admin.view_appointments()  # Admin views all appointments again to see the changes
-
-
-
-# Run the test scenario
-test_user_scenario()
-
-# Run the admin test scenario
-test_admin_scenario()
-
-
-
-
-
-
-
+if __name__ == "__main__":
+    main()
 
 
 
@@ -594,13 +735,3 @@ test_admin_scenario()
     
                     
  
-
-
-
-
-
-
-
-
-
-
