@@ -130,7 +130,24 @@ def main():
 
                 choice = input("Enter the number of the command you want to execute: ")
 
-                handle_admin_command(current_user, choice)
+        else:
+            print("\nAvailable commands:")
+            print("1. Sign Up")
+            print("2. Log In")
+            print("3. Exit")
+
+            choice = input("Enter the number of the command you want to execute: ")
+
+            if choice == "1":
+                current_user = sign_up()
+            elif choice == "2":
+                current_user = log_in()
+            elif choice == "3":
+                print("Exiting.")
+                break
+            else:
+                print("Invalid command. Please enter a valid command number.")
+
 
 if __name__ == "__main__":
     main()
