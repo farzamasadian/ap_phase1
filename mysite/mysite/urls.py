@@ -1,22 +1,19 @@
-"""
-URL configuration for mysite project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/4.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
 from django.urls import path
+from . import views
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('signup/', views.sign_up_view, name='signup'),
+    path('login/', views.log_in_view, name='login'),
+    path('user-appointments/', views.user_appointments_view, name='user_appointments'),
+    path('remove-appointment/<int:appointment_id>/', views.remove_appointment, name='remove_appointment'),
+    path('add-appointment-capacity/', views.add_appointment_capacity, name='add_appointment_capacity'),
+    path('book-appointment/', views.book_appointment, name='book_appointment'),
+    path('update-profile/', views.update_profile, name='update_profile'),
+    path('view-notifications/', views.view_notifications, name='view_notifications'),
+    path('update-clinic-info/<int:clinic_id>/', views.update_clinic_info, name='update_clinic_info'),
+    path('available-appointments/', views.fetch_available_appointments, name='available_appointments'),
+    path('adjust-clinic-capacity/', views.adjust_clinic_capacity, name='adjust_clinic_capacity'),
+    # ... other url patterns ...
 ]
+
